@@ -34,8 +34,8 @@ export default function App() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('home');
-  const [geminiKey, setGeminiKey] = useState(localStorage.getItem('gemini_key') || '');
   const [aiResponse, setAiResponse] = useState('');
+  const GEMINI_API_KEY = "AIzaSyDFUzfoZhCGze2886DqFeFRiTYRpO0hBBs";
   const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
@@ -64,30 +64,24 @@ export default function App() {
     fetchData();
   }, []);
 
-  // Helper function to map analog value (0-4095) to percentage (0-100%).
-  // Capacitive sensors output higher values when dry (e.g. 4095 = fully dry in air), and lower when wet (e.g. 1500 = fully submerged)
+  // Función para mapear valor analógico a porcentaje (0-100%).
+  // El sensor de corriente tira 4095 cuando la humedad es máxima, y 0 cuando está seco.
   const getSueloPercentage = (cruda: number) => {
     if (cruda == null) return 0;
-    const dryValue = 4095;
-    const wetValue = 1500;
-    const pct = 100 - ((cruda - wetValue) / (dryValue - wetValue)) * 100;
-    return Math.max(0, Math.min(100, pct)); // clamp between 0% and 100%
+    const minValor = 0;
+    const maxValor = 4095;
+    const pct = ((cruda - minValor) / (maxValor - minValor)) * 100;
+    return Math.max(0, Math.min(100, pct)); // límite entre 0% y 100%
   };
 
   const handleAskAI = async () => {
-    if (!geminiKey) {
-      alert("Por favor ingresá tu API Key de Gemini");
-      return;
-    }
-
     setAiLoading(true);
     setAiResponse('');
-    localStorage.setItem('gemini_key', geminiKey);
 
     // Build context snippet
     const lastDato = data[0];
     const contexto = `
-      Actuá como un experto jardinero. Tengo un sensor en mi huerta analógico capacitivo de 12-bits (max 4095 es sequedad total).
+      Actuá como un experto jardinero. Tengo un sensor en mi huerta que mide la humedad del suelo (0 es seco total, 4095 es humedad total).
       - Último registro hace un rato:
       - Temperatura en huerta: ${lastDato?.temperatura} °C
       - Humedad_aire: ${lastDato?.humedad_aire} %
@@ -104,7 +98,7 @@ export default function App() {
     `;
 
     try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ parts: [{ text: contexto }] }] })
@@ -136,7 +130,6 @@ export default function App() {
   } catch (e) {
     console.error("Date parse error");
   }
-  const isDataStale = hoursSinceLastData >= 16;
 
   const pctSuelo = latestData ? getSueloPercentage(latestData.humedad_suelo_cruda) : 0;
 
@@ -151,13 +144,6 @@ export default function App() {
         <div className="alert-banner">
           <AlertTriangle size={20} />
           <p>Error: {error}</p>
-        </div>
-      )}
-
-      {isDataStale && latestData && (
-        <div className="alert-banner" style={{ background: 'var(--warning-yellow)', color: 'white' }}>
-          <AlertTriangle size={20} />
-          <p>Alerta: Ya pasaron {hoursSinceLastData}hs sin recibir datos de los sensores en Supabase.</p>
         </div>
       )}
 
@@ -280,16 +266,9 @@ export default function App() {
           </div>
 
           <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 16 }}>
-            Ingresá tu API Key de Gemini para que evalúe si te conviene regar o no, basándose en la humedad actual y el pronóstico de los próximos días.
+            Consultá a la Inteligencia Artificial de Gemini para que evalúe si te conviene regar o no, basándose en la humedad actual y el pronóstico de los próximos días.
           </p>
 
-          <input
-            type="password"
-            placeholder="Pegá tu Gemini API Key acá..."
-            className="ai-input"
-            value={geminiKey}
-            onChange={(e) => setGeminiKey(e.target.value)}
-          />
           <button
             className="ai-btn"
             onClick={handleAskAI}
