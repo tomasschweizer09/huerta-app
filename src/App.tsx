@@ -35,7 +35,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('home');
   const [aiResponse, setAiResponse] = useState('');
-  const GEMINI_API_KEY = "AIzaSyDFUzfoZhCGze2886DqFeFRiTYRpO0hBBs";
+  const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
   const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
